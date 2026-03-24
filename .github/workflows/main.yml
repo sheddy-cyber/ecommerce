@@ -61,3 +61,4 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/ecommerce:latest
+          

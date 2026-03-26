@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models.user import User
 from schemas.user import UserCreate, UserResponse
-from utils.auth import hash_password, verify_password, create_access_token, get_current_user
+from utils.auth import get_admin_user, hash_password, verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,3 +39,17 @@ def login(
 
     token = create_access_token(data={"sub": user.username})
     return {"access_token": token, "token_type": "bearer"}
+
+@router.put("/make-admin/{user_id}")
+def make_admin(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_admin_user)
+):
+    from utils.auth import get_admin_user
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.is_admin = True
+    db.commit()
+    return {"message": f"{user.username} is now an admin"}

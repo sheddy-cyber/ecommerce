@@ -4,8 +4,6 @@ from database import Base, engine
 import models.user, models.product, models.order
 from routers import auth, products, orders, websockets
 
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from database import get_db
 from models.product import Product
 from schemas.product import ProductCreate, ProductResponse
 from utils.files import save_image
-from utils.auth import get_current_user
+from utils.auth import get_current_user, get_admin_user
 from typing import List
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -16,7 +16,7 @@ def create_product(
     price: float,
     stock: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(get_admin_user),
     description: str = None,
     image: UploadFile = File(None)
 ):
@@ -37,9 +37,21 @@ def create_product(
     return new_product
 
 
-@router.get("/", response_model=List[ProductResponse])
-def get_products(db: Session = Depends(get_db)):
-    return db.query(Product).all()
+@router.get("/", response_model=dict)
+def get_products(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    total = db.query(Product).count()
+    products = db.query(Product).offset(skip).limit(limit).all()
+
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "results": [ProductResponse.model_validate(p) for p in products]
+    }
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
@@ -59,7 +71,7 @@ def update_product(
     stock: int = None,
     image: UploadFile = File(None),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_admin_user)
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
@@ -80,7 +92,7 @@ def update_product(
 def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_admin_user)
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:

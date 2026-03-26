@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
 from models.order import Order
@@ -41,12 +41,24 @@ def create_order(
     return new_order
 
 
-@router.get("/", response_model=List[OrderResponse])
+@router.get("/", response_model=dict)
 def get_my_orders(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=10, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    return db.query(Order).filter(Order.user_id == current_user.id).all()
+    total = db.query(Order).filter(Order.user_id == current_user.id).count()
+    orders = db.query(Order).filter(
+        Order.user_id == current_user.id
+    ).offset(skip).limit(limit).all()
+
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "results": [OrderResponse.model_validate(o) for o in orders]
+    }
 
 
 @router.get("/{order_id}", response_model=OrderResponse)
